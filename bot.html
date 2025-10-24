@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Agendamento — POTISOFT BOT</title>
+  <style>
+    /* Reset mínimo */
+    * { box-sizing: border-box; }
+    html,body { height: 100%; margin: 0; font-family: "Helvetica Neue", Arial, sans-serif; background: #e5ddd5; }
+
+    /* Container principal imitando WhatsApp Web */
+    .app {
+      height: 100vh;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
+      padding: 18px;
+      background-image:
+        radial-gradient(circle at 0 0, rgba(0,0,0,0.03) 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    .chat-window {
+      width: 100%;
+      max-width: 980px;
+      height: 95vh;
+      display: flex;
+      flex-direction: column;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 6px 22px rgba(0,0,0,0.15);
+      background: #f0f2f5;
+    }
+
+    /* Cabeçalho do chat */
+    .header {
+      height: 72px;
+      background: linear-gradient(180deg,#075e54,#075e54);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+    }
+    .profile {
+      width:48px;height:48px;border-radius:50%;background:#ffffff22;display:flex;align-items:center;justify-content:center;
+      border: 2px solid rgba(255,255,255,0.12);
+      flex-shrink:0;
+    }
+    .profile svg { width:36px;height:36px; }
+    .header .meta { display:flex;flex-direction:column; }
+    .header .meta .name { font-weight:600; }
+    .header .meta .status { font-size:12px; opacity:0.9; }
+
+    /* Área de mensagens */
+    .messages {
+      flex: 1;
+      padding: 28px 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background-image:
+        linear-gradient(transparent 0%, transparent 100%);
+      background-color: #e5ddd5;
+    }
+
+    /* Balões */
+    .bubble {
+      max-width: 70%;
+      padding: 10px 14px;
+      border-radius: 7.5px;
+      line-height: 1.3;
+      position: relative;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+      word-wrap: break-word;
+      font-size: 14px;
+    }
+
+    .bot {
+      align-self: flex-start;
+      background: linear-gradient(180deg,#ffffff,#f0f0f0);
+      color: #111;
+      border-bottom-left-radius: 3px;
+    }
+    .user {
+      align-self: flex-end;
+      background: linear-gradient(180deg,#dcf8c6,#c7f0b7);
+      color: #111;
+      border-bottom-right-radius: 3px;
+    }
+
+    .meta-time {
+      display:block;
+      font-size: 11px;
+      color: rgba(0,0,0,0.45);
+      margin-top: 6px;
+      text-align: right;
+    }
+    .bot .meta-time { text-align: left; color: rgba(0,0,0,0.45); }
+
+    /* Botões e resumo */
+    .summary {
+      background: #fff;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 8px;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+      font-size: 14px;
+    }
+
+    .actions {
+      display:flex;
+      gap:8px;
+      margin-top:8px;
+    }
+    .btn {
+      padding:8px 12px;border-radius:6px;border: none;cursor:pointer;font-weight:600;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.06);
+    }
+    .btn-confirm { background:#25D366;color:#fff; }
+    .btn-edit { background:#fff;border:1px solid #ddd;color:#222; }
+
+    /* Barra de input inferior (tipo WhatsApp web) */
+    .input-bar {
+      height: 72px;
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:10px 14px;
+      background: linear-gradient(180deg, #f8f9fa, #f1f2f3);
+      border-top:1px solid rgba(0,0,0,0.06);
+    }
+    .input {
+      flex:1;
+      display:flex;
+      gap:8px;
+      align-items:center;
+      background:#fff;
+      padding:8px 10px;
+      border-radius:20px;
+      box-shadow: inset 0 1px 0 rgba(0,0,0,0.03);
+    }
+    .input input {
+      border:0; outline:0; flex:1; font-size:14px; background:transparent;
+    }
+    .send-btn {
+      background:#128C7E;
+      border:none;color:#fff;padding:8px 12px;border-radius:18px;cursor:pointer;font-weight:700;
+    }
+    .hint { font-size:12px;color:#666;padding-left:6px; }
+
+    /* Marcação de "digitando..." */
+    .typing {
+      font-style: italic;
+      color: rgba(0,0,0,0.5);
+      font-size: 13px;
+    }
+
+    /* Responsividade */
+    @media (max-width:600px){
+      .chat-window { height: 100vh; border-radius: 0; }
+      .messages { padding: 16px 10px; }
+    }
+
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="chat-window" role="application" aria-label="Chat de agendamento POTISOFT BOT">
+      <div class="header">
+        <div class="profile" aria-hidden="true">
+          <!-- ícone genérico -->
+          <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="#ffffff">
+            <circle cx="32" cy="32" r="30" fill="#ffffff22"/>
+            <g transform="translate(8,8)" fill="#fff">
+              <circle cx="16" cy="12" r="8" opacity="0.98"/>
+              <rect x="4" y="28" width="24" height="14" rx="6" opacity="0.98"/>
+            </g>
+          </svg>
+        </div>
+        <div class="meta">
+          <div class="name">POTISOFT BOT</div>
+          <div class="status">Online</div>
+        </div>
+      </div>
+
+      <main class="messages" id="messages" aria-live="polite"></main>
+
+      <div class="input-bar">
+        <div class="input" role="form" aria-label="Campo de mensagem">
+          <input id="textInput" placeholder="Digite sua mensagem ou pressione Enter para enviar" aria-label="Mensagem do fornecedor" autocomplete="off"/>
+        </div>
+        <button class="send-btn" id="sendBtn" aria-label="Enviar">Enviar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /*
+      Agendamento chatbot simulado no estilo WhatsApp.
+      Fluxo: bot faz perguntas sequenciais; respostas do usuário são coletadas;
+      no final é exibido um resumo e o agendamento pode ser confirmado (salvo em localStorage).
+    */
+
+    // Perguntas em sequência com chave para salvar.
+    const flow = [
+      { key: 'nome', question: 'Olá! 👋 Sou o assistente de agendamento da POTISOFT. Para começar, qual o NOME do fornecedor?' },
+      { key: 'cnpj', question: 'Ótimo. Informe o CNPJ (somente números).' },
+      { key: 'pedido', question: 'Qual é o número do pedido (ou nota)?' },
+      { key: 'data', question: 'Qual DATA desejada para a entrega? (formato: DD/MM/AAAA)' },
+      { key: 'hora', question: 'Qual HORÁRIO previsto para chegada? (ex: 10:00)' },
+      { key: 'veiculo', question: 'Informe o TIPO DE VEÍCULO (ex: caminhão, van, carro).' },
+      { key: 'volumes', question: 'Quantidade de VOLUMES/pallets?' },
+      { key: 'observacoes', question: 'Alguma OBSERVAÇÃO adicional? (ou digite "não")' }
+    ];
+
+    // Estado
+    const state = {
+      index: 0,
+      answers: {}
+    };
+
+    const messagesEl = document.getElementById('messages');
+    const textInput = document.getElementById('textInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    // util: hora atual formatada HH:MM
+    function horaAgora(date = new Date()){
+      const pad = n => String(n).padStart(2,'0');
+      return pad(date.getHours()) + ':' + pad(date.getMinutes());
+    }
+
+    // cria e adiciona uma bolha de mensagem
+    function pushMessage({text, who = 'bot', time = null, extraHtml = null}){
+      const bubble = document.createElement('div');
+      bubble.classList.add('bubble', who === 'bot' ? 'bot' : 'user');
+      bubble.innerHTML = `<div class="text">${escapeHtml(text)}</div>` + (extraHtml ? extraHtml : '');
+      const meta = document.createElement('div');
+      meta.className = 'meta-time';
+      meta.textContent = time || horaAgora();
+      bubble.appendChild(meta);
+      messagesEl.appendChild(bubble);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    // escapar HTML simples
+    function escapeHtml(str){
+      if(!str && str !== 0) return '';
+      return String(str)
+        .replaceAll('&','&amp;')
+        .replaceAll('<','&lt;')
+        .replaceAll('>','&gt;')
+        .replaceAll('"','&quot;')
+        .replaceAll("'",'&#39;');
+    }
+
+    // Simula "digitando..." do bot
+    function botTyping(duration = 800){
+      const typing = document.createElement('div');
+      typing.className = 'typing';
+      typing.textContent = 'POTISOFT BOT está digitando...';
+      messagesEl.appendChild(typing);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return new Promise(resolve => {
+        setTimeout(() => {
+          typing.remove();
+          resolve();
+        }, duration);
+      });
+    }
+
+    // inicia o fluxo com primeira pergunta
+    async function startFlow(){
+      await botTyping(900);
+      pushMessage({text: flow[0].question, who: 'bot'});
+      textInput.focus();
+    }
+
+    // validações simples para campos específicos (retorna mensagem de erro ou null)
+    function validateAnswer(key, value){
+      if(!value || value.trim() === '') return 'Por favor, informe um valor.';
+      const v = value.trim();
+      if(key === 'cnpj'){
+        const digits = v.replace(/\D/g,'');
+        if(digits.length !== 14) return 'CNPJ inválido. Informe 14 dígitos (somente números).';
+      }
+      if(key === 'data'){
+        // aceita formato DD/MM/AAAA
+        const m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if(!m) return 'Formato de data inválido. Use DD/MM/AAAA.';
+        const day = +m[1], month = +m[2], year = +m[3];
+        const d = new Date(year, month-1, day);
+        if(d.getFullYear() !== year || d.getMonth() !== month-1 || d.getDate() !== day) return 'Data inválida.';
+        const hoje = new Date(); hoje.setHours(0,0,0,0);
+        // permitir datas de hoje em diante
+        if(d < hoje) return 'A data precisa ser hoje ou futura.';
+      }
+      if(key === 'hora'){
+        if(!/^\d{1,2}:\d{2}$/.test(v)) return 'Formato de hora inválido. Ex: 09:30';
+        const parts = v.split(':'); const hh = +parts[0]; const mm = +parts[1];
+        if(hh < 0 || hh > 23 || mm < 0 || mm > 59) return 'Hora inválida.';
+      }
+      if(key === 'volumes'){
+        if(!/^\d+$/.test(v)) return 'Informe número inteiro para volumes.';
+      }
+      return null;
+    }
+
+    // processo ao enviar resposta do usuário
+    async function handleUserReply(text){
+      if(!text || text.trim() === '') return;
+      const trimmed = text.trim();
+      // adiciona mensagem do usuário
+      pushMessage({text: trimmed, who: 'user', time: horaAgora()});
+      // valida
+      const key = flow[state.index].key;
+      const validationError = validateAnswer(key, trimmed);
+      if(validationError){
+        await botTyping(700);
+        pushMessage({text: validationError, who: 'bot'});
+        return;
+      }
+      // grava resposta
+      state.answers[key] = trimmed;
+      // avança índice
+      state.index++;
+      if(state.index < flow.length){
+        // próxima pergunta
+        await botTyping(900);
+        pushMessage({text: flow[state.index].question, who: 'bot'});
+      } else {
+        // terminamos; mostrar resumo e pedir confirmação
+        await botTyping(900);
+        showSummary();
+      }
+    }
+
+    // monta resumo e opções de confirmar/editar
+    function showSummary(){
+      const a = state.answers;
+      const summaryHtml = `
+        <div class="summary" role="status" aria-live="polite">
+          <strong>Resumo do agendamento</strong>
+          <div style="margin-top:8px">
+            <div><strong>Fornecedor:</strong> ${escapeHtml(a.nome)}</div>
+            <div><strong>CNPJ:</strong> ${escapeHtml(a.cnpj)}</div>
+            <div><strong>Pedido:</strong> ${escapeHtml(a.pedido)}</div>
+            <div><strong>Data:</strong> ${escapeHtml(a.data)} às ${escapeHtml(a.hora)}</div>
+            <div><strong>Veículo:</strong> ${escapeHtml(a.veiculo)}</div>
+            <div><strong>Volumes:</strong> ${escapeHtml(a.volumes)}</div>
+            <div><strong>Observações:</strong> ${escapeHtml(a.observacoes)}</div>
+          </div>
+          <div class="actions">
+            <button class="btn btn-confirm" id="confirmBtn">Confirmar agendamento</button>
+            <button class="btn btn-edit" id="editBtn">Editar respostas</button>
+          </div>
+        </div>
+      `;
+      pushMessage({text: 'Confira os dados abaixo e confirme para salvar o agendamento.', who: 'bot', extraHtml: summaryHtml});
+      // adicionar listeners para os botões (delegation)
+      setTimeout(() => {
+        const confirmBtn = document.getElementById('confirmBtn');
+        const editBtn = document.getElementById('editBtn');
+        if(confirmBtn) confirmBtn.addEventListener('click', confirmAgendamento);
+        if(editBtn) editBtn.addEventListener('click', startEdit);
+      }, 50);
+    }
+
+    // confirmação: salva em localStorage
+    function confirmAgendamento(){
+      const a = state.answers;
+      const novo = {
+        id: 'AG' + Date.now(),
+        fornecedor: a.nome,
+        cnpj: a.cnpj,
+        pedido: a.pedido,
+        data: a.data,
+        hora: a.hora,
+        veiculo: a.veiculo,
+        volumes: a.volumes,
+        observacoes: a.observacoes,
+        criado_em: new Date().toISOString(),
+        status: 'Agendado'
+      };
+      // salvar array em localStorage
+      const key = 'potisoft_agendamentos';
+      const list = JSON.parse(localStorage.getItem(key) || '[]');
+      list.push(novo);
+      localStorage.setItem(key, JSON.stringify(list));
+      // notificar no chat
+      pushMessage({text: 'Agendamento confirmado ✅\nVou salvar e enviar a confirmação. Obrigado!', who: 'bot'});
+      // resetar fluxo para possível novo agendamento
+      state.index = 0;
+      state.answers = {};
+      setTimeout(() => {
+        botTyping(900).then(() => pushMessage({text: flow[0].question, who: 'bot'}));
+      }, 900);
+    }
+
+    // permite editar: recomeça fluxo pedindo o primeiro campo novamente, mas já com respostas parciais
+    function startEdit(){
+      // vamos editar a partir do primeiro campo: recomeça e insere mensagem com instruções
+      state.index = 0;
+      // repõem as respostas atuais para serem exibidas como sugestão (podemos usar placeholders)
+      const prefill = {...state.answers};
+      state.answers = prefill; // mantemos para substituição
+      pushMessage({text: 'Ok — vamos editar. Você pode responder novamente os campos que quiser atualizar.', who: 'bot'});
+      setTimeout(() => pushMessage({text: flow[0].question, who: 'bot'}), 700);
+    }
+
+    // eventos UI
+    sendBtn.addEventListener('click', () => {
+      const v = textInput.value;
+      if(!v) return;
+      textInput.value = '';
+      handleUserReply(v);
+    });
+
+    textInput.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter' && !e.shiftKey){
+        e.preventDefault();
+        sendBtn.click();
+      }
+    });
+
+    // Inicia com saudação e primeira pergunta
+    (function init(){
+      // limpar mensagens
+      messagesEl.innerHTML = '';
+      // primeira mensagem "bot" com saudação (usa botTyping)
+      startFlow();
+    })();
+
+    // Acessibilidade: foco no campo ao clicar na janela
+    document.querySelector('.chat-window').addEventListener('click', () => textInput.focus());
+  </script>
+</body>
+</html>
