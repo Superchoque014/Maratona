@@ -1,0 +1,641 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Agendamento de Entregas – POTISOFT</title>
+
+  <!-- Roboto -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --brand:#d60000;
+      --whats:#25D366;
+      --bg:#f8f8f8;
+      --card:#ffffff;
+      --muted:#666b6f;
+      --shadow: 0 8px 28px rgba(16,24,40,0.06);
+      --selected-bg: rgba(214,0,0,0.08);
+      --selected-border: rgba(214,0,0,0.9);
+      --radius:12px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family: 'Roboto', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+      background:var(--bg);
+      color:#222;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
+    }
+    a{color:inherit;text-decoration:none}
+    button{font-family:inherit}
+
+    /* HEADER */
+    header.site-header{
+      background:var(--brand);
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 20px;
+      gap:16px;
+      position:sticky;
+      top:0;
+      z-index:60;
+      box-shadow:0 2px 6px rgba(0,0,0,.06);
+    }
+    .header-left{display:flex;align-items:center;gap:14px}
+    .menu-btn{
+      display:inline-flex;align-items:center;justify-content:center;
+      width:42px;height:42px;border-radius:8px;background:rgba(255,255,255,0.06);
+      cursor:pointer;font-weight:700;font-size:18px;border:0;color:#fff;
+    }
+    .brand-title{font-weight:800;font-size:20px;letter-spacing:1px}
+    .search-wrap{flex:1;display:flex;justify-content:center}
+    .search-field{
+      width:60%;max-width:620px;padding:10px 12px;border-radius:8px;border:0;background:rgba(255,255,255,0.12);color:#fff;
+      outline:none;font-size:14px;
+    }
+    .header-right{display:flex;align-items:center;gap:10px}
+    .icon-btn{background:transparent;border:0;color:#fff;padding:10px 8px;cursor:pointer;font-size:16px}
+
+    /* LAYOUT */
+    .container{flex:1;display:flex;flex-direction:column;align-items:center;padding:22px}
+    .content{width:100%;max-width:1100px;display:flex;gap:20px;align-items:flex-start}
+
+    /* DRAWER + OVERLAY */
+    .overlay{position:fixed;inset:0;background:rgba(6,10,12,0.35);opacity:0;visibility:hidden;transition:all .22s ease;z-index:90}
+    .overlay.show{opacity:1;visibility:visible}
+    .drawer{
+      position:fixed;left:0;top:0;height:100vh;width:360px;max-width:94vw;background:var(--card);
+      box-shadow:2px 0 24px rgba(0,0,0,.12);transform:translateX(-102%);transition:transform .28s cubic-bezier(.2,.9,.2,1);
+      z-index:100;display:flex;flex-direction:column;padding:18px;gap:12px;border-right:1px solid #efefef;
+    }
+    .drawer.open{transform:translateX(0)}
+    .drawer header{display:flex;align-items:center;justify-content:space-between}
+    .drawer h2{color:var(--brand);font-size:18px;margin:0}
+    .close-drawer{background:transparent;border:0;font-size:18px;cursor:pointer;color:var(--muted)}
+
+    /* calendar controls */
+    .cal-top{display:flex;align-items:center;justify-content:space-between}
+    .cal-nav{display:flex;gap:8px;align-items:center}
+    .cal-nav button{background:transparent;border:1px solid #eee;padding:8px 10px;border-radius:8px;cursor:pointer}
+    .month-label{font-weight:600;color:#222}
+
+    .cal-view-controls{display:flex;gap:8px;margin-top:6px}
+    .cal-view-controls button{
+      background:transparent;color:var(--muted);border:1px solid #eee;padding:8px;border-radius:8px;cursor:pointer;font-size:14px;
+    }
+    .cal-view-controls button.active{
+      background:var(--brand);color:#fff;border:0;
+    }
+
+    /* calendar grid */
+    .calendar-wrap{overflow:auto;margin-top:10px}
+    .weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:8px}
+    .weekday{font-size:13px;color:#666;text-align:center;font-weight:700}
+    .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+    .cell{
+      background:var(--card);padding:10px;border-radius:8px;text-align:center;cursor:pointer;min-height:64px;
+      display:flex;flex-direction:column;justify-content:flex-start;align-items:center;border:1px solid transparent;transition:all .12s ease;
+      box-shadow:0 2px 6px rgba(16,24,40,0.03);
+    }
+    .cell:hover{transform:translateY(-4px)}
+    .cell.inactive{background:#fafafa;border:1px dashed #f0f0f0;cursor:default;transform:none}
+    .cell.disabled{background:#f1f3f4;color:#9aa0a6;cursor:not-allowed;box-shadow:none;transform:none}
+    .cell .date-num{font-weight:700;font-size:15px}
+    .cell .meta{font-size:12px;color:#80848a;margin-top:6px}
+    .cell.selected{background:var(--selected-bg);border:2px solid var(--selected-border)}
+
+    /* main card/form */
+    .card{
+      background:var(--card);padding:20px;border-radius:12px;box-shadow:var(--shadow);width:100%;
+      max-width:740px;
+    }
+    .card h2{color:var(--brand);text-align:left;margin-bottom:14px;font-size:20px}
+    details{background:#fff;border:1px solid #eef0f2;border-radius:8px;padding:12px;margin-bottom:12px}
+    summary{cursor:pointer;padding:6px 8px;font-weight:700;color:var(--brand);outline:none;font-size:15px}
+    .section-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:10px}
+    .full{grid-column:1/-1}
+    .field{width:100%;padding:12px;border-radius:8px;border:1px solid #e6e8ea;font-size:14px;color:#222}
+    .field.small{padding:8px}
+    textarea.field{resize:vertical;min-height:84px}
+    .actions{display:flex;gap:12px;margin-top:14px;justify-content:flex-end}
+    .btn-primary{background:var(--brand);color:#fff;border:0;padding:12px 18px;border-radius:8px;cursor:pointer;font-weight:700}
+    .btn-secondary{background:transparent;border:1px solid #e6e8ea;padding:10px 14px;border-radius:8px;color:var(--muted);cursor:pointer}
+
+    /* sidebar/summary area (right) removed as requested */
+    .summary-right{display:none}
+
+    /* footer */
+    footer.site-footer{background:var(--brand);color:#fff;padding:24px 20px;margin-top:18px}
+    .footer-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;max-width:1100px;margin:0 auto}
+    .footer-grid h4{margin-bottom:8px}
+    .footer-grid p,a{font-size:14px;color:rgba(255,255,255,.95)}
+
+    /* floating buttons (WhatsApp + chat) */
+    .float-stack{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:12px;align-items:end;z-index:130}
+    .btn-float{
+      width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(10,10,10,.12);
+      border:0;cursor:pointer;font-size:20px;color:#fff;
+    }
+    .btn-whats{background:var(--whats)}
+    .btn-chat{background:var(--brand)}
+    .btn-float.small{width:44px;height:44px;font-size:16px}
+
+    /* chat window internal (formal) */
+    .chat-window{position:fixed;right:86px;bottom:86px;width:360px;max-width:92vw;height:460px;background:var(--card);border-radius:12px;box-shadow:0 16px 44px rgba(10,10,10,.12);display:none;flex-direction:column;overflow:hidden;z-index:140}
+    .chat-header{background:linear-gradient(180deg,var(--brand),#b80000);color:#fff;padding:12px;font-weight:700;text-align:left;display:flex;align-items:center;justify-content:space-between}
+    .chat-body{flex:1;padding:12px;overflow:auto;background:linear-gradient(180deg,#fff,#fbfbfb)}
+    .chat-input{display:flex;padding:10px;border-top:1px solid #f0f0f0}
+    .chat-input input{flex:1;padding:10px;border:1px solid #e6e8ea;border-radius:8px;margin-right:8px}
+    .chat-bubble{max-width:80%;padding:8px 12px;border-radius:12px;margin:8px 0;display:inline-block}
+    .chat-bubble.me{background:var(--brand);color:#fff;margin-left:auto}
+    .chat-bubble.bot{background:#f1f3f4;color:#222;margin-right:auto}
+
+    /* Responsive */
+    @media(max-width:1080px){
+      .content{flex-direction:column;align-items:stretch}
+      .drawer{width:88vw}
+    }
+    @media(max-width:520px){
+      .search-field{width:84%}
+      .calendar{gap:6px}
+      .cell{min-height:56px;padding:8px}
+      .brand-title{font-size:18px}
+      .card{padding:14px}
+      .chat-window{right:12px;left:12px;bottom:86px;width:calc(100% - 24px)}
+    }
+  </style>
+</head>
+<body>
+  <!-- HEADER -->
+  <header class="site-header" role="banner">
+    <div class="header-left">
+      <button class="menu-btn" id="menuBtn" aria-label="Abrir menu">☰</button>
+      <div class="brand-title">POTISOFT</div>
+    </div>
+
+    <div class="search-wrap">
+      <input class="search-field" placeholder="Buscar entregas, empresas ou pedidos..." aria-label="Busca" />
+    </div>
+
+    <div class="header-right">
+      <button class="icon-btn" title="Minha Conta" aria-label="Minha conta">👤</button>
+      <button class="icon-btn" title="Suporte" aria-label="Suporte">🎧</button>
+    </div>
+  </header>
+
+  <!-- OVERLAY + DRAWER -->
+  <div id="overlay" class="overlay" aria-hidden="true"></div>
+
+  <aside id="drawer" class="drawer" aria-hidden="true">
+    <header>
+      <h2>Calendário</h2>
+      <button class="close-drawer" id="closeDrawer" aria-label="Fechar menu">✕</button>
+    </header>
+
+    <div class="cal-top">
+      <div class="cal-nav">
+        <button id="prevMonth" aria-label="Mês anterior">◀</button>
+        <div class="month-label" id="monthLabel">Outubro 2025</div>
+        <button id="nextMonth" aria-label="Próximo mês">▶</button>
+      </div>
+    </div>
+
+    <div class="cal-view-controls" role="tablist" aria-label="Visualização">
+      <button data-view="week">Semana</button>
+      <button data-view="month" class="active">Mês</button>
+      <button data-view="year">Ano</button>
+    </div>
+
+    <div class="calendar-wrap" id="calendarWrap" tabindex="0" aria-live="polite" style="margin-top:10px">
+      <div class="weekdays" id="weekdaysRow" aria-hidden="false"></div>
+      <div class="calendar" id="calendarGrid" role="grid" aria-label="Calendário"></div>
+      <div id="monthsGrid" style="display:none;margin-top:8px"></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="container">
+    <div class="content" style="width:100%;max-width:1100px">
+      <main>
+        <section class="card" aria-labelledby="mainTitle">
+          <h2 id="mainTitle">Agendamento de Entregas</h2>
+
+          <!-- FORNECEDOR -->
+          <details open>
+            <summary>🧾 Informações básicas do fornecedor</summary>
+            <div class="section-grid" style="margin-top:10px">
+              <input id="fornecedor_nome" class="field" placeholder="Nome da empresa fornecedora" />
+              <input id="fornecedor_cnpj" class="field" placeholder="CNPJ" />
+              <input id="responsavel_nome" class="field" placeholder="Nome do responsável pelo agendamento" />
+              <input id="contato_telefone" class="field" placeholder="Telefone de contato (fixo/cel/WhatsApp)" />
+              <input id="contato_email" class="field full" placeholder="E-mail para confirmação" />
+              <input id="unidade" class="field" placeholder="Unidade / filial (ex.: depósito, loja)" />
+            </div>
+          </details>
+
+          <!-- ENTREGA -->
+          <details open>
+            <summary>🚛 Dados da entrega</summary>
+            <div class="section-grid" style="margin-top:10px">
+              <input id="entrega_data" class="field" type="date" />
+              <select id="entrega_faixa" class="field">
+                <option value="">Horário disponível para entrega</option>
+                <option>08:00 - 12:00</option>
+                <option>13:00 - 17:00</option>
+                <option>17:00 - 20:00</option>
+              </select>
+              <input id="entrega_local" class="field" placeholder="Local de entrega (ex.: Depósito Central)" />
+              <input id="entrega_endereco" class="field full" placeholder="Endereço completo" />
+              <select id="tipo_descarga" class="field">
+                <option value="">Tipo de descarga</option>
+                <option>Manual</option>
+                <option>Empilhadeira</option>
+                <option>Doca</option>
+                <option>Outros</option>
+              </select>
+              <select id="agendamento_doca" class="field">
+                <option value="">Necessidade de agendamento de doca/pátio?</option>
+                <option value="Sim">Sim</option>
+                <option value="Não">Não</option>
+              </select>
+            </div>
+          </details>
+
+          <!-- PRODUTOS -->
+          <details open>
+            <summary>📦 Informações sobre os produtos</summary>
+            <div class="section-grid" style="margin-top:10px">
+              <input id="nota_fiscal" class="field" placeholder="Número da nota fiscal" />
+              <input id="pedido_compra" class="field" placeholder="Número do pedido de compra (PO / OC)" />
+              <input id="descricao_produtos" class="field full" placeholder="Descrição dos produtos (nome, código, categoria)" />
+              <input id="quantidade_volumes" class="field" placeholder="Quantidade total de volumes" />
+              <input id="peso_dimensoes" class="field" placeholder="Peso e dimensões totais (kg / m³)" />
+              <select id="tipo_embalagem" class="field">
+                <option value="">Tipo de embalagem</option>
+                <option>Caixa</option>
+                <option>Palete</option>
+                <option>Big Bag</option>
+                <option>Outro</option>
+              </select>
+              <select id="perecivel_fragil" class="field">
+                <option value="">Mercadoria perecível ou frágil?</option>
+                <option value="Não">Não</option>
+                <option value="Sim">Sim - Embalagem/ Cuidados especiais</option>
+              </select>
+            </div>
+          </details>
+
+          <!-- TRANSPORTE -->
+          <details open>
+            <summary>🚚 Dados do transporte</summary>
+            <div class="section-grid" style="margin-top:10px">
+              <input id="transportadora" class="field" placeholder="Transportadora responsável" />
+              <input id="placa_veiculo" class="field" placeholder="Placa do veículo" />
+              <select id="tipo_veiculo" class="field">
+                <option value="">Tipo de veículo</option>
+                <option>Caminhão Toco</option>
+                <option>Truck</option>
+                <option>Carreta</option>
+                <option>Utilitário</option>
+              </select>
+              <input id="motorista_nome" class="field" placeholder="Nome do motorista" />
+              <input id="motorista_telefone" class="field" placeholder="Telefone do motorista" />
+              <input id="previsao_chegada" class="field" type="datetime-local" placeholder="Previsão de chegada (data e hora)" />
+            </div>
+          </details>
+
+          <!-- OBS -->
+          <details open>
+            <summary>⚠️ Observações / Prioridades</summary>
+            <div style="margin-top:10px">
+              <textarea id="observacoes" class="field full" rows="4" placeholder="Observações importantes (acesso, documentos, instruções especiais)"></textarea>
+            </div>
+          </details>
+
+          <div class="actions">
+            <button id="confirmar" class="btn-primary">Confirmar Agendamento</button>
+            <button id="limpar" class="btn-secondary" title="Limpar formulário">Limpar</button>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Floating Buttons: WhatsApp (link to bot.html) + Chat -->
+  <div class="float-stack" aria-hidden="false">
+    <!-- Now opens bot.html in a new tab -->
+    <a id="whatsBtn" class="btn-float btn-whats" href="bot.html" target="_blank" title="Abrir POTISOFT BOT (nova aba)" aria-label="Bot">
+      <!-- WhatsApp SVG icon (white, proportional) -->
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M20.52 3.48A11.94 11.94 0 0 0 12 .5C6.21.5 1.5 5.21 1.5 11c0 1.95.51 3.85 1.48 5.52L1 23l6.7-1.77A11.94 11.94 0 0 0 12 22.5c5.79 0 10.5-4.71 10.5-10.5 0-2.83-1.1-5.32-2.98-7.02z" fill="#fff"/>
+        <path d="M17.4 14.2c-.3-.15-1.76-.86-2.03-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.34.22-.63.07-.3-.15-1.27-.47-2.42-1.49-.89-.79-1.5-1.77-1.68-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.34.45-.51.15-.17.2-.3.3-.5.1-.2 0-.37-.02-.52-.02-.15-.67-1.6-.92-2.2-.24-.56-.48-.48-.66-.49-.17 0-.36-.01-.55-.01-.18 0-.48.06-.74.36-.27.3-1.04 1.01-1.04 2.46 0 1.45 1.06 2.86 1.21 3.06.15.2 2.09 3.2 5.07 4.49 2.98 1.29 2.98.86 3.52.81.55-.05 1.76-.72 2.01-1.41.25-.69.25-1.29.17-1.41-.08-.12-.3-.2-.6-.35z" fill="#fff"/>
+      </svg>
+    </a>
+
+    <button id="chatBtn" class="btn-float btn-chat" title="Abrir chat interno" aria-label="Chat interno">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M21 6.5A4.5 4.5 0 0 0 16.5 2h-9A4.5 4.5 0 0 0 3 6.5v6C3 15 5 17 7 17h3l2 3 2-3h2c2 0 4-2 4-4.5v-6z" fill="#fff"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Internal Chat Window (simulated) -->
+  <div id="chatWindow" class="chat-window" role="dialog" aria-hidden="true" aria-label="Chat interno">
+    <div class="chat-header">
+      <div>Atendimento POTISOFT</div>
+      <div style="font-size:14px;color:rgba(255,255,255,0.9);cursor:pointer" id="chatClose">✕</div>
+    </div>
+    <div id="chatBody" class="chat-body" aria-live="polite">
+      <div class="chat-bubble bot">Bem-vindo ao atendimento. Em que podemos ajudar?</div>
+    </div>
+    <div class="chat-input">
+      <input id="chatInput" placeholder="Digite sua mensagem e pressione Enter" aria-label="Mensagem"/>
+      <button id="chatSend" class="btn-primary" style="padding:8px 12px">Enviar</button>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="footer-grid">
+      <div>
+        <h4>Institucional</h4>
+        <p><a href="#" style="color:inherit">Sobre a POTISOFT</a></p>
+        <p><a href="#" style="color:inherit">Política de Privacidade</a></p>
+      </div>
+      <div>
+        <h4>Atendimento</h4>
+        <p>Telefone: (00) 0 0000-0000</p>
+        <p>Email: suporte@potisoft.com</p>
+      </div>
+      <div>
+        <h4>Redes</h4>
+        <p><a href="#" style="color:inherit">Facebook</a></p>
+        <p><a href="#" style="color:inherit">Instagram</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    /* ===== Config ===== */
+    const FIXED_UNAVAILABLE = [5, 12, 18]; // dias indisponíveis fixos
+    let view = 'month';
+    let displayedDate = new Date();
+    let selectedDate = null;
+
+    /* ===== Elements ===== */
+    const menuBtn = document.getElementById('menuBtn');
+    const drawer = document.getElementById('drawer');
+    const overlay = document.getElementById('overlay');
+    const closeDrawer = document.getElementById('closeDrawer');
+    const prevMonthBtn = document.getElementById('prevMonth');
+    const nextMonthBtn = document.getElementById('nextMonth');
+    const monthLabel = document.getElementById('monthLabel');
+    const weekdaysRow = document.getElementById('weekdaysRow');
+    const calendarGrid = document.getElementById('calendarGrid');
+    const monthsGrid = document.getElementById('monthsGrid');
+    const dateInput = document.getElementById('entrega_data');
+
+    const whatsBtn = document.getElementById('whatsBtn'); // now an <a href="bot.html" target="_blank">
+    const chatBtn = document.getElementById('chatBtn');
+    const chatWindow = document.getElementById('chatWindow');
+    const chatClose = document.getElementById('chatClose');
+    const chatBody = document.getElementById('chatBody');
+    const chatInput = document.getElementById('chatInput');
+    const chatSend = document.getElementById('chatSend');
+
+    const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const weekdaysHeader = ['S','T','Q','Q','S','S','D']; // first letters for display
+
+    function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
+    function isSameDay(a,b){ return a && b && a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
+
+    /* Drawer open/close */
+    function openDrawer(){ drawer.classList.add('open'); overlay.classList.add('show'); drawer.setAttribute('aria-hidden','false'); document.body.style.overflow='hidden'; }
+    function closeDrawerFn(){ drawer.classList.remove('open'); overlay.classList.remove('show'); drawer.setAttribute('aria-hidden','true'); document.body.style.overflow=''; }
+    menuBtn.addEventListener('click', ()=> drawer.classList.contains('open')? closeDrawerFn() : openDrawer());
+    closeDrawer.addEventListener('click', closeDrawerFn);
+    overlay.addEventListener('click', closeDrawerFn);
+    window.addEventListener('keydown', (e)=> { if(e.key === 'Escape') closeDrawerFn(); });
+
+    /* Render weekdays first letter */
+    function renderWeekdays(){
+      weekdaysRow.innerHTML = '';
+      const order = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
+      const letters = order.map(w => w[0]); // S T Q Q S S D
+      letters.forEach(l => {
+        const el = document.createElement('div');
+        el.className = 'weekday';
+        el.textContent = l;
+        weekdaysRow.appendChild(el);
+      });
+    }
+
+    /* Render calendar */
+    function renderCalendar(){
+      calendarGrid.innerHTML = '';
+      monthsGrid.style.display = 'none';
+      weekdaysRow.style.display = (view === 'year') ? 'none' : 'grid';
+      monthLabel.textContent = `${months[displayedDate.getMonth()]} ${displayedDate.getFullYear()}`;
+
+      if (view === 'year'){
+        monthsGrid.style.display = 'grid';
+        monthsGrid.className = 'months-grid';
+        monthsGrid.innerHTML = '';
+        for (let m=0;m<12;m++){
+          const mc = document.createElement('div');
+          mc.className = 'month-card';
+          mc.textContent = `${months[m]} ${displayedDate.getFullYear()}`;
+          mc.tabIndex = 0;
+          mc.style.padding = '14px';
+          mc.style.fontWeight = '600';
+          mc.addEventListener('click', ()=> {
+            displayedDate = new Date(displayedDate.getFullYear(), m, 1);
+            view = 'month';
+            document.querySelectorAll('.cal-view-controls button').forEach(b=>b.classList.remove('active'));
+            document.querySelector('.cal-view-controls button[data-view="month"]').classList.add('active');
+            renderCalendar();
+          });
+          monthsGrid.appendChild(mc);
+        }
+        calendarGrid.style.display = 'none';
+        return;
+      } else {
+        calendarGrid.style.display = 'grid';
+        calendarGrid.style.gridTemplateColumns = 'repeat(7,1fr)';
+      }
+
+      renderWeekdays();
+
+      if (view === 'week'){
+        let ref = selectedDate ? new Date(selectedDate) : new Date();
+        if (ref.getMonth() !== displayedDate.getMonth() || ref.getFullYear() !== displayedDate.getFullYear()){
+          ref = new Date(displayedDate.getFullYear(), displayedDate.getMonth(), 1);
+        }
+        const dayOfWeek = ref.getDay(); // 0 Sun..6 Sat
+        const mondayOffset = (dayOfWeek === 0) ? -6 : (1 - dayOfWeek);
+        const monday = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate() + mondayOffset);
+
+        for (let i=0;i<7;i++){
+          const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+          const cell = document.createElement('div'); cell.className = 'cell';
+          const dayNum = d.getDate();
+          const sameMonth = d.getMonth() === displayedDate.getMonth();
+          const disabled = sameMonth && FIXED_UNAVAILABLE.includes(dayNum);
+          if (!sameMonth) cell.classList.add('inactive');
+          if (disabled) cell.classList.add('disabled');
+          const num = document.createElement('div'); num.className='date-num'; num.textContent = dayNum;
+          const meta = document.createElement('div'); meta.className='meta'; meta.textContent = `${d.toLocaleString('pt-BR',{weekday:'long'})}`;
+          cell.appendChild(num); cell.appendChild(meta);
+          if (!disabled && sameMonth) cell.addEventListener('click', ()=> selectDate(d));
+          if (selectedDate && isSameDay(d, selectedDate)) cell.classList.add('selected');
+          calendarGrid.appendChild(cell);
+        }
+        return;
+      }
+
+      // month view: start Monday
+      const year = displayedDate.getFullYear();
+      const month = displayedDate.getMonth();
+      const firstDay = new Date(year, month, 1);
+      let startWeekday = firstDay.getDay(); // 0 Sun .. 6 Sat
+      const shift = (startWeekday === 0) ? -6 : (1 - startWeekday);
+      const gridStart = new Date(year, month, 1 + shift);
+      const totalCells = 42;
+      for (let i=0;i<totalCells;i++){
+        const d = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate()+i);
+        const cell = document.createElement('div'); cell.className='cell';
+        const inThisMonth = d.getMonth() === month && d.getFullYear() === year;
+        if (!inThisMonth) cell.classList.add('inactive');
+        const dayNum = d.getDate();
+        const disabled = inThisMonth && FIXED_UNAVAILABLE.includes(dayNum);
+        if (disabled) cell.classList.add('disabled');
+        const num = document.createElement('div'); num.className='date-num'; num.textContent = dayNum;
+        const meta = document.createElement('div'); meta.className='meta'; meta.textContent = inThisMonth ? '' : months[d.getMonth()].slice(0,3);
+        cell.appendChild(num); cell.appendChild(meta);
+        if (!disabled && inThisMonth) cell.addEventListener('click', ()=> selectDate(d));
+        if (selectedDate && isSameDay(d, selectedDate)) cell.classList.add('selected');
+        calendarGrid.appendChild(cell);
+      }
+    }
+
+    /* Navigation */
+    document.getElementById('prevMonth').addEventListener('click', ()=> {
+      if (view === 'year') displayedDate = new Date(displayedDate.getFullYear()-1, displayedDate.getMonth(), 1);
+      else displayedDate = new Date(displayedDate.getFullYear(), displayedDate.getMonth()-1, 1);
+      renderCalendar();
+    });
+    document.getElementById('nextMonth').addEventListener('click', ()=> {
+      if (view === 'year') displayedDate = new Date(displayedDate.getFullYear()+1, displayedDate.getMonth(), 1);
+      else displayedDate = new Date(displayedDate.getFullYear(), displayedDate.getMonth()+1, 1);
+      renderCalendar();
+    });
+    document.querySelectorAll('.cal-view-controls button').forEach(btn=>{
+      btn.addEventListener('click', ()=> {
+        view = btn.getAttribute('data-view');
+        document.querySelectorAll('.cal-view-controls button').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        if (view === 'week' && !selectedDate) displayedDate = new Date();
+        renderCalendar();
+      });
+    });
+
+    /* Select date -> fill input correctly */
+    function selectDate(d){
+      selectedDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const yyyy = selectedDate.getFullYear();
+      const mm = String(selectedDate.getMonth()+1).padStart(2,'0');
+      const dd = String(selectedDate.getDate()).padStart(2,'0');
+      dateInput.value = `${yyyy}-${mm}-${dd}`;
+      closeDrawerFn();
+      renderCalendar();
+    }
+
+    /* Init */
+    renderWeekdays();
+    renderCalendar();
+
+    /* Form handling (save to localStorage) */
+    document.getElementById('confirmar').addEventListener('click', ()=>{
+      const data = {
+        fornecedor_nome: document.getElementById('fornecedor_nome').value.trim(),
+        fornecedor_cnpj: document.getElementById('fornecedor_cnpj').value.trim(),
+        responsavel_nome: document.getElementById('responsavel_nome').value.trim(),
+        contato_telefone: document.getElementById('contato_telefone').value.trim(),
+        contato_email: document.getElementById('contato_email').value.trim(),
+        unidade: document.getElementById('unidade').value.trim(),
+        entrega_data: document.getElementById('entrega_data').value,
+        entrega_faixa: document.getElementById('entrega_faixa').value,
+        entrega_local: document.getElementById('entrega_local').value.trim(),
+        entrega_endereco: document.getElementById('entrega_endereco').value.trim(),
+        tipo_descarga: document.getElementById('tipo_descarga').value,
+        agendamento_doca: document.getElementById('agendamento_doca').value,
+        nota_fiscal: document.getElementById('nota_fiscal').value.trim(),
+        pedido_compra: document.getElementById('pedido_compra').value.trim(),
+        descricao_produtos: document.getElementById('descricao_produtos').value.trim(),
+        quantidade_volumes: document.getElementById('quantidade_volumes').value.trim(),
+        peso_dimensoes: document.getElementById('peso_dimensoes').value.trim(),
+        tipo_embalagem: document.getElementById('tipo_embalagem').value,
+        perecivel_fragil: document.getElementById('perecivel_fragil').value,
+        transportadora: document.getElementById('transportadora').value.trim(),
+        placa_veiculo: document.getElementById('placa_veiculo').value.trim(),
+        tipo_veiculo: document.getElementById('tipo_veiculo').value,
+        motorista_nome: document.getElementById('motorista_nome').value.trim(),
+        motorista_telefone: document.getElementById('motorista_telefone').value.trim(),
+        previsao_chegada: document.getElementById('previsao_chegada').value.trim(),
+        observacoes: document.getElementById('observacoes').value.trim(),
+        createdAt: new Date().toISOString()
+      };
+
+      // validações mínimas
+      if(!data.fornecedor_nome){ alert('Preencha o nome da empresa fornecedora.'); return; }
+      if(!data.fornecedor_cnpj){ alert('Preencha o CNPJ.'); return; }
+      if(!data.responsavel_nome){ alert('Preencha o nome do responsável.'); return; }
+      if(!data.contato_telefone){ alert('Preencha o telefone de contato.'); return; }
+      if(!data.contato_email){ alert('Preencha o e-mail de confirmação.'); return; }
+      if(!data.entrega_data){ alert('Selecione a data preferencial de entrega.'); return; }
+
+      const list = JSON.parse(localStorage.getItem('agendamentos')||'[]');
+      list.push(data);
+      localStorage.setItem('agendamentos', JSON.stringify(list));
+      alert('Agendamento registrado com sucesso! (salvo localmente)');
+    });
+
+    document.getElementById('limpar').addEventListener('click', ()=>{
+      if(!confirm('Limpar todos os campos do formulário?')) return;
+      document.querySelectorAll('.card .field').forEach(f => f.value = '');
+    });
+
+    /* Chat & support */
+    // Whats button now is a normal link to bot.html (target="_blank"), keep behavior simple:
+    whatsBtn.addEventListener('click', (e)=>{
+      // keep default link behavior (opens bot.html in new tab)
+      // (no extra JS needed; this listener is harmless and will not block navigation)
+    });
+
+    chatBtn.addEventListener('click', ()=>{
+      chatWindow.style.display = 'flex';
+      chatWindow.setAttribute('aria-hidden','false');
+    });
+    chatSend.addEventListener('click', sendChat);
+    chatInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') sendChat(); });
+    chatClose.addEventListener('click', ()=> { chatWindow.style.display = 'none'; chatWindow.setAttribute('aria-hidden','true'); });
+
+    function sendChat(){
+      const v = chatInput.value.trim(); if(!v) return;
+      const me = document.createElement('div'); me.style.textAlign='right'; me.style.margin='8px 0'; me.textContent = v; chatBody.appendChild(me);
+      chatInput.value=''; chatBody.scrollTop = chatBody.scrollHeight;
+      setTimeout(()=>{ const r=document.createElement('div'); r.style.textAlign='left'; r.style.margin='8px 0'; r.textContent='Recebemos sua mensagem. Em breve retornaremos.'; chatBody.appendChild(r); chatBody.scrollTop = chatBody.scrollHeight; },700);
+    }
+
+    // ensure calendar displays correctly on load
+    window.addEventListener('load', ()=> { renderWeekdays(); renderCalendar(); });
+  </script>
+</body>
+</html>
